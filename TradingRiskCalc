@@ -1,0 +1,362 @@
+TradingRiskCalc/
+├── package.json
+├── electron-main.js
+├── preload.js
+├── public/
+│   └── index.html
+├── src/
+│   ├── index.jsx
+│   ├── App.jsx
+│   ├── components/
+│   │   ├── Sidebar.jsx
+│   │   └── Graph.jsx
+│   ├── utils/
+│   │   └── calculations.js
+│   └── presets.json
+├── .gitignore
+└── README.md
+```
+
+---
+
+**package.json**
+```json
+{
+  "name": "TradingRiskCalc",
+  "version": "0.1.0",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "concurrently \"vite\" \"electron .\"",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^25.0.0",
+    "electron-builder": "^23.0.0",
+    "vite": "^4.0.0",
+    "concurrently": "^7.0.0",
+    "@vitejs/plugin-react": "^3.0.0"
+  },
+  "dependencies": {
+    "chart.js": "^4.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-chartjs-2": "^5.0.0"
+  }
+}
+```
+
+---
+
+**electron-main.js**
+```js
+const { app, BrowserWindow, ipcMain } = require('electron');
+const { join } = require('path');
+const fs = require('fs');
+const userDataPath = app.getPath('userData');
+const presetsFile = join(userDataPath, 'presets.json');
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      preload: join(__dirname, 'preload.js')
+    }
+  });
+  win.loadURL('http://localhost:5173');
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+ipcMain.handle('load-presets', async () => {
+  try {
+    if (!fs.existsSync(presetsFile)) fs.writeFileSync(presetsFile, JSON.stringify({}));
+    const raw = fs.readFileSync(presetsFile);
+    return JSON.parse(raw);
+  } catch (e) {
+    return {};
+  }
+});
+
+ipcMain.handle('save-presets', async (_, data) => {
+  fs.writeFileSync(presetsFile, JSON.stringify(data, null, 2));
+  return true;
+});
+```
+
+---
+
+**preload.js**
+```js
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('api', {
+  loadPresets: () => ipcRenderer.invoke('load-presets'),
+  savePresets: (data) => ipcRenderer.invoke('save-presets', data)
+});
+```
+
+---
+
+**public/index.html**
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trading Risk Calculator</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/index.jsx"></script>
+</body>
+</html>
+```
+
+---
+
+**src/index.jsx**
+```jsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+```
+
+---
+
+**src/App.jsx**
+```jsx
+import React, { useState, useEffect } from 'react';
+import Sidebar from './components/Sidebar';
+import Graph from './components/Graph';
+import { calculateRiskPerTrade, calculateTotalPotentialLoss, calculateTotalPotentialGain } from './utils/calculations';
+
+export default function App() {
+  const [inputs, setInputs] = useState({
+    capital: 100000,
+    riskPercent: 1,
+    dailyMax: 5,
+    weeklyMax: 10,
+    stopAfterReds: 3,
+    sharePrice: 50,
+    shares: 100,
+    target: 1
+  });
+  const [presets, setPresets] = useState({});
+
+  useEffect(() => {
+    window.api.loadPresets().then(setPresets);
+  }, []);
+
+  const handleSavePreset = (name) => {
+    const all = { ...presets, [name]: inputs };
+    window.api.savePresets(all).then(() => setPresets(all));
+  };
+
+  const riskPerTrade = calculateRiskPerTrade(inputs);
+  const totalLoss = calculateTotalPotentialLoss(inputs);
+  const totalGain = calculateTotalPotentialGain(inputs);
+
+  return (
+    <div style={{ display: 'flex', height: '100%' }}>
+      <Sidebar
+        inputs={inputs}
+        setInputs={setInputs}
+        presets={presets}
+        onSavePreset={handleSavePreset}
+      />
+      <Graph
+        inputs={inputs}
+        riskPerTrade={riskPerTrade}
+        totalLoss={totalLoss}
+        totalGain={totalGain}
+      />
+    </div>
+  );
+}
+```
+
+---
+
+**src/components/Sidebar.jsx**
+```jsx
+import React from 'react';
+
+export default function Sidebar({ inputs, setInputs, presets, onSavePreset }) {
+  const update = (key) => (e) => setInputs({ ...inputs, [key]: parseFloat(e.target.value) });
+  return (
+    <div style={{ width: '350px', padding: '20px', background: '#f0f0f0' }}>
+      {Object.entries(inputs).map(([key, val]) => (
+        <div key={key} style={{ marginBottom: '15px' }}>
+          <label>{key}</label>
+          <input
+            type="range"
+            min={key === 'riskPercent' ? 0 : 0}
+            max={key === 'riskPercent' ? 100 : 1000}
+            value={val}
+            onChange={update(key)}
+          />
+          <input
+            type="number"
+            value={val}
+            onChange={update(key)}
+            style={{ width: '80px', marginLeft: '10px' }}
+          />
+        </div>
+      ))}
+      <div>
+        <h4>Presets</h4>
+        <select onChange={(e) => setInputs(presets[e.target.value] || inputs)}>
+          <option>--Select--</option>
+          {Object.keys(presets).map((name) => (
+            <option key={name}>{name}</option>
+          ))}
+        </select>
+        <button onClick={() => onSavePreset(prompt('Preset name:'))}>Save Preset</button>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+**src/components/Graph.jsx**
+```jsx
+import React, { useRef, useEffect } from 'react';
+import { Chart, LineController, LineElement, PointElement, LinearScale, CategoryScale } from 'chart.js';
+
+Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale);
+
+export default function Graph({ inputs, riskPerTrade, totalLoss, totalGain }) {
+  const canvasRef = useRef();
+
+  useEffect(() => {
+    const ctx = canvasRef.current.getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Trade'],
+        datasets: [
+          {
+            label: 'Potential P/L',
+            data: [totalGain, -totalLoss],
+            borderColor: 'lime',
+            backgroundColor: 'transparent',
+            pointBackgroundColor: ['red', 'red'],
+            fill: false,
+            tension: 0.4
+          }
+        ]
+      },
+      options: {
+        scales: {
+          x: { grid: { color: 'lime', lineWidth: 0.1 }, ticks: { color: 'lime' } },
+          y: { grid: { color: 'lime', lineWidth: 0.1 }, ticks: { color: 'lime' } }
+        },
+        elements: { line: { borderWidth: 2 }, point: { radius: 6 } },
+        plugins: { legend: { labels: { color: 'lime' } } },
+        layout: { padding: 10 },
+        responsive: true,
+        maintainAspectRatio: false,
+        background: 'black'
+      }
+    });
+  }, [totalGain, totalLoss]);
+
+  return (
+    <div style={{ flex: 1, background: '#000', position: 'relative' }}>
+      <canvas ref={canvasRef} />
+    </div>
+  );
+}
+```
+
+---
+
+**src/utils/calculations.js**
+```js
+export function calculateRiskPerTrade({ capital, riskPercent }) {
+  return (capital * riskPercent) / 100;
+}
+
+export function calculateTotalPotentialLoss({ sharePrice, shares, stopAfterReds }) {
+  return sharePrice * shares * (stopAfterReds || 1);
+}
+
+export function calculateTotalPotentialGain({ target, shares }) {
+  return target * shares;
+}
+```
+
+---
+
+**src/presets.json**
+```json
+{
+  "conservative": {
+    "capital": 100000,
+    "riskPercent": 0.5,
+    "dailyMax": 2,
+    "weeklyMax": 5,
+    "stopAfterReds": 2,
+    "sharePrice": 50,
+    "shares": 100,
+    "target": 0.5
+  },
+  "normal": { /* ... */ },
+  "aggressive": { /* ... */ }
+}
+```
+
+---
+
+**.gitignore**
+```
+node_modules/
+dist/
+*.log
+/presets.json
+```
+
+---
+
+**README.md**
+```md
+# Trading Risk Calculator
+
+## Setup
+
+```bash
+npm install
+npm run dev
+# In another terminal:
+electron .
+```
+
+## Build
+
+Using electron-builder:
+
+```bash
+npm run build
+```
+
+This creates installers for Windows/macOS.
+
+## Notes
+- Uses React + Vite + Electron
+- Chart.js for graphing (black background, lime grid, red point)
+- Presets stored in JSON at userData
+- Clear, commented code for future React Native port
