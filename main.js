@@ -15,10 +15,11 @@ function createWindow() {
       nodeIntegration: false
     }
   });
-  if (app.isPackaged) {
-    win.loadFile(join(__dirname, 'dist', 'index.html'));
+
+  if (process.env.NODE_ENV !== 'production') {
+    win.loadURL('http://localhost:3000');
   } else {
-    win.loadURL('http://localhost:5173');
+    win.loadFile(path.join(__dirname, 'build', 'index.html'));
   }
 }
 
