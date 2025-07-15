@@ -43,3 +43,10 @@ export default function App() {
       />
       <Graph
         inputs={inputs}
+        riskPerTrade={riskPerTrade}
+        totalLoss={totalLoss}
+        totalGain={totalGain}
+      />
+    </div>
+  );
+}
