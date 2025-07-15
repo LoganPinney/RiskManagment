@@ -15,7 +15,8 @@ This runs both the Vite development server and the Electron process.
 
 ## Building for Production
 
-To package the application for distribution run:
+To package the application for distribution run the build script which first
+compiles the renderer with Vite and then packages the app with Electron Builder:
 
 ```bash
 npm run build
