@@ -3,19 +3,10 @@
   "version": "0.1.0",
   "main": "electron-main.js",
   "scripts": {
-    // runs your React UI on localhost:5173
   "serve": "vite",
-
-  // waits until the UI is up, then launches Electron
   "electron": "wait-on http://localhost:5173 && electron .",
-
-  // runs both in parallel (Electron will hold until Vite is listening)
   "dev": "concurrently \"npm run serve\" \"npm run electron\"",
-
-  // just launches Electron (assumes you've already built the UI to ./dist)
   "start": "electron .",
-
-  // builds your React UI and packages via electron-builder
   "build": "electron-builder"
   },
   "devDependencies": {
