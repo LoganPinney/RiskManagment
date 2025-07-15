@@ -1,13 +1,21 @@
 {
   "name": "my-trading-risk-calculator",
   "version": "0.1.0",
-  "main": "electron-main.js",
+  "main": "main.js",
   "scripts": {
   "serve": "vite",
-  "electron": "wait-on http://localhost:5173 && electron .",
+    "electron": "wait-on http://localhost:3000 && electron .",
   "dev": "concurrently \"npm run serve\" \"npm run electron\"",
   "start": "electron .",
-  "build": "electron-builder"
+    "build": "react-scripts build && electron-builder",
+  "test": "node test/test.mjs"
+  },
+  "build": {
+    "files": [
+      "build/**/*",
+      "main.js",
+      "package.json"
+    ]
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^3.0.0",
