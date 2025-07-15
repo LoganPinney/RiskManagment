@@ -7,7 +7,8 @@
   "electron": "wait-on http://localhost:5173 && electron .",
   "dev": "concurrently \"npm run serve\" \"npm run electron\"",
   "start": "electron .",
-  "build": "vite build && electron-builder"
+  "build": "vite build && electron-builder",
+  "test": "node test/test.mjs"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^3.0.0",
