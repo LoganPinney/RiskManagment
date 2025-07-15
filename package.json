@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "main": "electron-main.js",
   "scripts": {
-  "serve": "vite",
+  "serve": "vite --port: 5173",
   "electron": "wait-on http://localhost:5173 && electron .",
   "dev": "concurrently \"npm run serve\" \"npm run electron\"",
   "start": "electron .",
