@@ -9,7 +9,9 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: join(__dirname, 'preload.js')
+      preload: join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
     }
   });
   win.loadURL('http://localhost:5173');
